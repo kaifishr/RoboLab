@@ -5,7 +5,6 @@ from typing import Any, Optional
 
 import gymnasium as gym
 import numpy
-
 import pygame
 
 from Box2D import (
@@ -16,23 +15,19 @@ from Box2D import (
     b2Body,
     b2World,
 )
-from Box2D.examples.framework import (
-    Framework,
-    main,
-)
 
-from roboarm.tasks.tasks import (
+from robolab.tasks.tasks import (
     StackBoxes,
     DropBallIntoBox,
 )
 
-from roboarm.render.renderer import Renderer
+from robolab.render.renderer import Renderer
 
 
 FPS: int = 60
 TIME_STEP: float = 1.0 / FPS
-VELOCITY_ITERATIONS: int = 20  # Iterations to compute next velocity.
-POSITION_ITERATIONS: int = 20  # Iterations to compute next position.
+VELOCITY_ITERATIONS: int = 10  # Iterations to compute next velocity.
+POSITION_ITERATIONS: int = 10  # Iterations to compute next position.
 SCALE: int = 16
 
 
@@ -52,7 +47,7 @@ class RoboticArm(gym.Env):
 
     The observation space consists of the state of the robotic arm as well as the state of the task.
 
-    The robotic arm's state consists of 39 floating point values. 
+    The robotic arm's state consists of 39 floating point values.
     There are five joints and three links.
 
     Joints:
@@ -149,9 +144,12 @@ class RoboticArm(gym.Env):
     ) -> None:
         self.isopen = True
 
-        self.world = world
-        if self.world is None:
+        if world is None:
             self.world = b2World(gravity=gravity)
+            self.is_single = True
+        else:
+            self.world = world
+            self.is_single = False
 
         self.uid = uid
         self.center_x = x_center
@@ -170,14 +168,14 @@ class RoboticArm(gym.Env):
         base_size_y = 1.0
 
         link_half_width = 0.6
-        link_half_length = 8.0
+        link_half_length = 9.0
 
         link_1_size_x = link_half_length
         link_1_size_y = link_half_width
         link_2_size_x = link_half_width
-        link_2_size_y = 0.8 * link_half_length
+        link_2_size_y = 0.7 * link_half_length
         link_3_size_x = link_half_width
-        link_3_size_y = 0.7 * link_half_length
+        link_3_size_y = 0.6 * link_half_length
 
         self._make_robot_case(
             x_min=x_min,
@@ -514,9 +512,14 @@ class RoboticArm(gym.Env):
 
     def step(self, action: numpy.array) -> tuple[numpy.array, float, bool, bool, dict[str, Any]]:
         self.episode_step += 1
+
         self._apply_action(joint_actions=action)
-        self.world.Step(TIME_STEP, VELOCITY_ITERATIONS, POSITION_ITERATIONS)
-        self.world.ClearForces()  # TODO: Check this.
+
+        if self.is_single:
+            # This is called in the RobotLab class if we run arms in parallel.
+            self.world.Step(TIME_STEP, VELOCITY_ITERATIONS, POSITION_ITERATIONS)
+            self.world.ClearForces()
+
         observation = self._get_observation()
         reward, terminated = self._comp_reward()
         truncated = True if self.episode_step > self.max_episode_steps else False
@@ -527,6 +530,12 @@ class RoboticArm(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
+    def _reset_arm(self) -> None:
+        for joint in self.joints:
+            joint.motorSpeed = 0.0
+        for link, position in zip(self.links, self.positions):
+            self._reset_body(body=link, position=position)
+
     def reset(
         self,
         *,
@@ -535,44 +544,37 @@ class RoboticArm(gym.Env):
     ) -> tuple[numpy.array, dict[str, Any]]:
         super().reset(seed=seed)
         self.episode_step = 0
-
-        # Reset robotic arm.
-        # self.arm.reset()
-        for joint in self.joints:
-            joint.motorSpeed = 0.0
-
-        for link, position in zip(self.links, self.positions):
-            self._reset_body(body=link, position=position)
-
+        self._reset_arm()
         self.task.reset()
-
         observation = self._get_observation()
         info = {"uid": self.uid}
-
         if self.render_mode == "human":
             self.render()
-
         return observation, info
 
     def render(self) -> None:
-        if self.render_mode == "human":
-            if self.screen is None:
-                pygame.init()
-                pygame.display.init()
-                pygame.display.set_caption("Robot Arm")
-                self.screen = pygame.display.set_mode(
-                    (
-                        int(1.05 * SCALE * self.x_diam),
-                        int(1.05 * SCALE * self.y_diam),
-                    )
+        if self.screen is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            pygame.display.set_caption("RoboArm")
+            self.screen = pygame.display.set_mode(
+                (
+                    int(1.02 * SCALE * self.x_diam),
+                    int(1.02 * SCALE * self.y_diam),
                 )
-                self.clock = pygame.time.Clock()
-                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+            )
+            self.clock = pygame.time.Clock()
+            self.renderer = Renderer(screen=self.screen, scale=SCALE)
 
-            self.renderer.render(world=self.world)
-            self.clock.tick(FPS)
-            pygame.event.pump()
-            pygame.display.flip()
+        self.renderer.render(world=self.world)
+        self.clock.tick(FPS)
+        pygame.event.pump()
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.close()
+                exit()
 
     def close(self):
         if self.screen is not None:
@@ -583,20 +585,26 @@ class RoboticArm(gym.Env):
             self.isopen = False
 
 
-class RoboticArmDebug(Framework):
+def debug():
 
-    def __init__(self):
-        super().__init__()
-        self.robot = RoboticArm(world=self.world)
-        self.viewCenter = (0.5 * self.robot.x_diam, 0.5 * self.robot.y_diam)
+    from Box2D.examples.framework import Framework, main
 
-    def Step(self, settings) -> None:
-        super().Step(settings)
-        action = self.robot.action_space.sample()
-        observation, reward, terminated, truncated, info = self.robot.step(action=action)
-        if terminated or truncated:
-            observation, infos = self.robot.reset()
+    class RoboticArmDebug(Framework):
+
+        def __init__(self):
+            super().__init__()
+            self.robot = RoboticArm(world=self.world)
+            self.viewCenter = (0.5 * self.robot.x_diam, 0.5 * self.robot.y_diam)
+
+        def Step(self, settings) -> None:
+            super().Step(settings)
+            action = self.robot.action_space.sample()
+            observation, reward, terminated, truncated, info = self.robot.step(action=action)
+            if terminated or truncated:
+                observation, infos = self.robot.reset()
+
+    main(RoboticArmDebug)
 
 
 if __name__ == "__main__":
-    main(RoboticArmDebug)
+    debug()

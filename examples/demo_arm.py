@@ -1,5 +1,5 @@
 import gymnasium as gym
-from roboarm.envs.robotic_arm import RoboticArm
+from robolab.envs.robotic_arm import RoboticArm
 
 
 def test_env(env: gym.Env, max_num_rollouts: int = 2) -> None:

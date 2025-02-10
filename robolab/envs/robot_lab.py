@@ -2,7 +2,6 @@ from typing import Any, Optional
 
 import gymnasium as gym
 import numpy
-
 import pygame
 
 from Box2D import (
@@ -10,18 +9,13 @@ from Box2D import (
     b2World,
 )
 
-from Box2D.examples.framework import (
-    Framework,
-    main,
-)
-
-from roboarm.envs.robotic_arm import RoboticArm
-from roboarm.render.renderer import Renderer
+from robolab.envs.robotic_arm import RoboticArm
+from robolab.render.renderer import Renderer
 
 FPS: int = 60
 TIME_STEP: float = 1.0 / FPS
-VELOCITY_ITERATIONS: int = 20  # Iterations to compute next velocity.
-POSITION_ITERATIONS: int = 20  # Iterations to compute next position.
+VELOCITY_ITERATIONS: int = 10  # Iterations to compute next velocity.
+POSITION_ITERATIONS: int = 10  # Iterations to compute next position.
 SCALE: int = 8
 
 
@@ -56,8 +50,8 @@ class RobotLab(gym.Env):
     def __init__(
         self,
         world: Optional[b2World] = None,
-        x_range: int = 4,
-        y_range: int = 3,
+        x_range: int = 5,
+        y_range: int = 4,
         xy_gap: float = 1.0,
         x_min: float = 0.0,
         x_max: float = 60.0,
@@ -69,13 +63,15 @@ class RobotLab(gym.Env):
         max_episode_steps: int = 1000,
         render_mode: Optional[str] = None,
         task_id: Optional[int] = 1,
-    ):
-        super().__init__()
+    ) -> None:
         self.isopen = True
 
-        self.world = world
-        if self.world is None:
+        if world is None:
             self.world = b2World(gravity=gravity)
+            self.is_single = True
+        else:
+            self.world = world
+            self.is_single = False
 
         x_diam = x_max - x_min
         y_diam = y_max - y_min
@@ -101,6 +97,7 @@ class RobotLab(gym.Env):
                     max_motor_torque=max_motor_torque,
                     max_episode_steps=max_episode_steps,
                     task_id=task_id,
+                    render_mode=None,  # (!)
                 )
             )
 
@@ -136,9 +133,9 @@ class RobotLab(gym.Env):
 
     def step(
         self,
-        actions: Optional[numpy.array] = None,
+        actions: dict[str, numpy.array],
     ) -> tuple[
-        dict[str, numpy.array], dict[str, float], dict[str, bool], dict[str, bool], dict[Any]
+        dict[str, numpy.array], dict[str, float], dict[str, bool], dict[str, bool], dict[str, Any]
     ]:
         observations = {}
         rewards = {}
@@ -154,6 +151,9 @@ class RobotLab(gym.Env):
             truncateds[robot.uid] = truncated
             infos[robot.uid] = info
 
+        self.world.Step(TIME_STEP, VELOCITY_ITERATIONS, POSITION_ITERATIONS)
+        self.world.ClearForces()
+
         if self.render_mode == "human":
             self.render()
 
@@ -166,38 +166,39 @@ class RobotLab(gym.Env):
         options: Optional[dict[str, Any]] = None,
     ) -> tuple[dict[str, numpy.array], dict[str, Any]]:
         super().reset(seed=seed)
-
         observations = {}
         infos = {}
         for robot in self.robots:
             obs, info = robot.reset(seed=seed, options=options)
             observations[robot.uid] = obs
             infos[robot.uid] = info
-
         if self.render_mode == "human":
             self.render()
-
         return observations, infos
 
     def render(self) -> None:
-        if self.render_mode == "human":
-            if self.screen is None:
-                pygame.init()
-                pygame.display.init()
-                pygame.display.set_caption("Robot Lab")
-                self.screen = pygame.display.set_mode(
-                    (
-                        int(1.05 * SCALE * self.x_diam),
-                        int(1.05 * SCALE * self.y_diam),
-                    )
+        if self.screen is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            pygame.display.set_caption("RoboLab")
+            self.screen = pygame.display.set_mode(
+                (
+                    int(1.02 * SCALE * self.x_diam),
+                    int(1.02 * SCALE * self.y_diam),
                 )
-                self.clock = pygame.time.Clock()
-                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+            )
+            self.clock = pygame.time.Clock()
+            self.renderer = Renderer(screen=self.screen, scale=SCALE)
 
-            self.renderer.render(world=self.world)
-            self.clock.tick(FPS)
-            pygame.event.pump()
-            pygame.display.flip()
+        self.renderer.render(world=self.world)
+        self.clock.tick(FPS)
+        pygame.event.pump()
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.close()
+                exit()
 
     def close(self):
         if self.screen is not None:
@@ -208,21 +209,28 @@ class RobotLab(gym.Env):
             self.isopen = False
 
 
-class RobotLabDebug(Framework):
+def debug():
+    from Box2D.examples.framework import Framework, main
 
-    def __init__(self):
-        super().__init__()
-        self.robot_lab = RobotLab(world=self.world)
-        self.setCenter(value=(0.25 * self.robot_lab.x_diam, 0.25 * self.robot_lab.y_diam))
-        self.setZoom(zoom=5)
+    class RobotLabDebug(Framework):
 
-    def Step(self, settings) -> None:
-        super().Step(settings)
-        actions = self.robot_lab.action_space.sample()
-        observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(actions=actions)
-        if any(terminateds.values()) or any(truncateds.values()):
-            observation, infos = self.robot_lab.reset()
+        def __init__(self):
+            super().__init__()
+            self.robot_lab = RobotLab(world=self.world)
+            self.setCenter(value=(0.25 * self.robot_lab.x_diam, 0.25 * self.robot_lab.y_diam))
+            self.setZoom(zoom=5)
+
+        def Step(self, settings) -> None:
+            super().Step(settings)
+            actions = self.robot_lab.action_space.sample()
+            observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(
+                actions=actions
+            )
+            if any(terminateds.values()) or any(truncateds.values()):
+                observation, infos = self.robot_lab.reset()
+
+    main(RobotLabDebug)
 
 
 if __name__ == "__main__":
-    main(RobotLabDebug)
+    debug()

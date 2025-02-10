@@ -1,0 +1,12 @@
+name: robolab
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - gymnasium
+  - pybox2d
+  - numpy
+  - pip
+  - pip:
+    - pygame

@@ -1,12 +1,17 @@
 # RoboticArm
 
 TODO
-- Add requirements
-- Test install instructions
+- Fix bug in lab.
 - Create video.
-- Publish env.
 
-## PyBox2D Documentation
+## Install
+
+```
+conda env create -f environment.yml
+```
+
+## Run the examples
+
 
 Run single robotic arm
 

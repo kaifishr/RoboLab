@@ -1,5 +1,5 @@
 import gymnasium as gym
-from roboarm.envs.robot_lab import RobotLab
+from robolab.envs.robot_lab import RobotLab
 
 
 def test_env(env: gym.Env, max_num_rollouts: int = 2) -> None:
@@ -9,7 +9,6 @@ def test_env(env: gym.Env, max_num_rollouts: int = 2) -> None:
     while is_running:
         action = env.action_space.sample()
         observation, reward, terminated, truncated, info = env.step(action)
-
         total_reward += sum(reward.values())
         if any(terminated.values()) or any(truncated.values()):
             observation, info = env.reset()
