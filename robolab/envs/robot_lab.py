@@ -43,7 +43,7 @@ class RobotLab(gym.Env):
     """
 
     metadata = {
-        "render_modes": ["human"],
+        "render_modes": ["human", "rgb_array"],
         "render_fps": FPS,
     }
 
@@ -111,6 +111,8 @@ class RobotLab(gym.Env):
 
         self.render_mode = render_mode
         self.clock = None
+        self.surface = None
+        self.renderer = None
         self.screen: Optional[pygame.Surface] = None
 
     @staticmethod
@@ -176,27 +178,60 @@ class RobotLab(gym.Env):
             self.render()
         return observations, infos
 
-    def render(self) -> None:
-        if self.screen is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.init()
-            pygame.display.set_caption("Robot Lab")
-            self.screen = pygame.display.set_mode((
-                int(1.02 * SCALE * self.x_diam),
-                int(1.02 * SCALE * self.y_diam),
-            ))
-            self.clock = pygame.time.Clock()
-            self.renderer = Renderer(screen=self.screen, scale=SCALE)
+    ## def render(self) -> None:
+    ##     if self.screen is None and self.render_mode == "human":
+    ##         pygame.init()
+    ##         pygame.display.init()
+    ##         pygame.display.set_caption("Robot Lab")
+    ##         self.screen = pygame.display.set_mode((
+    ##             int(1.02 * SCALE * self.x_diam),
+    ##             int(1.02 * SCALE * self.y_diam),
+    ##         ))
+    ##         self.clock = pygame.time.Clock()
+    ##         self.renderer = Renderer(screen=self.screen, scale=SCALE)
+    ##     self.renderer.render(world=self.world)
+    ##     self.clock.tick(FPS)
+    ##     pygame.event.pump()
+    ##     pygame.display.flip()
+    ##     for event in pygame.event.get():
+    ##         if event.type == pygame.QUIT:
+    ##             self.close()
+    ##             exit()
 
-        self.renderer.render(world=self.world)
-        self.clock.tick(FPS)
-        pygame.event.pump()
-        pygame.display.flip()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.close()
-                exit()
+    def render(self) -> Optional[numpy.ndarray]:
+        if self.render_mode == "human":
+            if self.screen is None:
+                pygame.init()
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (
+                        int(1.02 * SCALE * self.x_diam),
+                        int(1.02 * SCALE * self.y_diam),
+                    )
+                )
+                pygame.display.set_caption("Robot Arm")
+                self.clock = pygame.time.Clock()
+                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+            self.renderer.render(world=self.world)
+            self.clock.tick(FPS)
+            pygame.event.pump()
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.close()
+                    exit()
+        elif self.render_mode == "rgb_array":
+            if self.renderer is None:
+                self.surface = pygame.Surface(
+                    (
+                        int(1.02 * SCALE * self.x_diam),
+                        int(1.02 * SCALE * self.y_diam),
+                    )
+                )
+                self.renderer = Renderer(screen=self.surface, scale=SCALE)
+            self.renderer.render(world=self.world)
+            rgb_array = numpy.array(pygame.surfarray.pixels3d(self.surface))
+            return numpy.transpose(rgb_array, axes=(1, 0, 2))
 
     def close(self):
         if self.screen is not None:
@@ -221,7 +256,9 @@ def debug():
         def Step(self, settings) -> None:
             super().Step(settings)
             actions = self.robot_lab.action_space.sample()
-            observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(actions=actions)
+            observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(
+                actions=actions
+            )
             if any(terminateds.values()) or any(truncateds.values()):
                 observation, infos = self.robot_lab.reset()
 

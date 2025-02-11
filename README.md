@@ -1,8 +1,9 @@
 # RoboticArm
 
 TODO
-- Create video.
-- Check observation space ranges. 
+- Add gif to readme.
+- Check observation space ranges.
+
 
 ## Install
 

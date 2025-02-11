@@ -589,7 +589,6 @@ class RobotArm(gym.Env):
             rgb_array = numpy.array(pygame.surfarray.pixels3d(self.surface))
             return numpy.transpose(rgb_array, axes=(1, 0, 2))
 
-
     def close(self):
         if self.screen is not None:
             import pygame
