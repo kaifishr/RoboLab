@@ -1,5 +1,5 @@
 import gymnasium as gym
-from robolab.envs.robotic_arm import RoboticArm
+from robolab.envs.robot_arm import RobotArm
 
 
 def test_env(env: gym.Env, max_num_rollouts: int = 2) -> None:
@@ -20,5 +20,5 @@ def test_env(env: gym.Env, max_num_rollouts: int = 2) -> None:
 
 
 if __name__ == "__main__":
-    env = RoboticArm(render_mode="human")
+    env = RobotArm(render_mode="human")
     test_env(env=env)

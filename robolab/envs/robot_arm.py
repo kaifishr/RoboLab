@@ -31,7 +31,7 @@ POSITION_ITERATIONS: int = 10  # Iterations to compute next position.
 SCALE: int = 16
 
 
-class RoboticArm(gym.Env):
+class RobotArm(gym.Env):
     """
     This is a simple 5-joint robotic arm.
 
@@ -117,7 +117,7 @@ class RoboticArm(gym.Env):
     ]
 
     metadata = {
-        "render_modes": ["human"],
+        "render_modes": ["human", "rgb_array"],
         "render_fps": FPS,
     }
 
@@ -359,6 +359,8 @@ class RoboticArm(gym.Env):
 
         self.render_mode = render_mode
         self.clock = None
+        self.surface = None
+        self.renderer = None
         self.screen: Optional[pygame.Surface] = None
 
     def _make_observation_space(self) -> gym.spaces.Box:
@@ -552,29 +554,41 @@ class RoboticArm(gym.Env):
             self.render()
         return observation, info
 
-    def render(self) -> None:
-        if self.screen is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.init()
-            pygame.display.set_caption("RoboArm")
-            self.screen = pygame.display.set_mode(
-                (
-                    int(1.02 * SCALE * self.x_diam),
-                    int(1.02 * SCALE * self.y_diam),
+    def render(self) -> Optional[numpy.ndarray]:
+        if self.render_mode == "human":
+            if self.screen is None:
+                pygame.init()
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (
+                        int(1.02 * SCALE * self.x_diam),
+                        int(1.02 * SCALE * self.y_diam),
+                    )
                 )
-            )
-            self.clock = pygame.time.Clock()
-            self.renderer = Renderer(screen=self.screen, scale=SCALE)
+                pygame.display.set_caption("Robot Arm")
+                self.clock = pygame.time.Clock()
+                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+            self.renderer.render(world=self.world)
+            self.clock.tick(FPS)
+            pygame.event.pump()
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.close()
+                    exit()
+        elif self.render_mode == "rgb_array":
+            if self.renderer is None:
+                self.surface = pygame.Surface(
+                    (
+                        int(1.02 * SCALE * self.x_diam),
+                        int(1.02 * SCALE * self.y_diam),
+                    )
+                )
+                self.renderer = Renderer(screen=self.surface, scale=SCALE)
+            self.renderer.render(world=self.world)
+            rgb_array = numpy.array(pygame.surfarray.pixels3d(self.surface))
+            return numpy.transpose(rgb_array, axes=(1, 0, 2))
 
-        self.renderer.render(world=self.world)
-        self.clock.tick(FPS)
-        pygame.event.pump()
-        pygame.display.flip()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.close()
-                exit()
 
     def close(self):
         if self.screen is not None:
@@ -593,7 +607,7 @@ def debug():
 
         def __init__(self):
             super().__init__()
-            self.robot = RoboticArm(world=self.world)
+            self.robot = RobotArm(world=self.world)
             self.viewCenter = (0.5 * self.robot.x_diam, 0.5 * self.robot.y_diam)
 
         def Step(self, settings) -> None:

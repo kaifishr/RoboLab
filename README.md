@@ -1,8 +1,8 @@
 # RoboticArm
 
 TODO
-- Fix bug in lab.
 - Create video.
+- Check observation space ranges. 
 
 ## Install
 

@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.9
-  - gymnasium
+  - gymnasium[other]
   - pybox2d
   - numpy
   - pip

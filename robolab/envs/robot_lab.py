@@ -9,7 +9,7 @@ from Box2D import (
     b2World,
 )
 
-from robolab.envs.robotic_arm import RoboticArm
+from robolab.envs.robot_arm import RobotArm
 from robolab.render.renderer import Renderer
 
 FPS: int = 60
@@ -84,7 +84,7 @@ class RobotLab(gym.Env):
         self.robots = []
         for uid, (x, y) in zip(ids, coords):
             self.robots.append(
-                RoboticArm(
+                RobotArm(
                     uid=uid,
                     world=self.world,
                     x_min=x_min,
@@ -180,13 +180,11 @@ class RobotLab(gym.Env):
         if self.screen is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
-            pygame.display.set_caption("RoboLab")
-            self.screen = pygame.display.set_mode(
-                (
-                    int(1.02 * SCALE * self.x_diam),
-                    int(1.02 * SCALE * self.y_diam),
-                )
-            )
+            pygame.display.set_caption("Robot Lab")
+            self.screen = pygame.display.set_mode((
+                int(1.02 * SCALE * self.x_diam),
+                int(1.02 * SCALE * self.y_diam),
+            ))
             self.clock = pygame.time.Clock()
             self.renderer = Renderer(screen=self.screen, scale=SCALE)
 
@@ -223,9 +221,7 @@ def debug():
         def Step(self, settings) -> None:
             super().Step(settings)
             actions = self.robot_lab.action_space.sample()
-            observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(
-                actions=actions
-            )
+            observations, rewards, terminateds, truncateds, infos = self.robot_lab.step(actions=actions)
             if any(terminateds.values()) or any(truncateds.values()):
                 observation, infos = self.robot_lab.reset()
 
