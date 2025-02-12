@@ -4,8 +4,8 @@ from robolab.envs.robot_lab import RobotLab
 
 
 def record_video_arm() -> None:
-    env = RobotArm(render_mode="rgb_array", task_id=0)
-    env = RecordVideo(env, video_folder="videos")
+    env = RobotArm(render_mode="rgb_array", task_id=0, max_episode_steps=400)
+    env = RecordVideo(env, video_folder="videos", name_prefix="arm")
     observation, info = env.reset()
     is_running = True
     while is_running:
@@ -17,8 +17,8 @@ def record_video_arm() -> None:
 
 
 def record_video_lab() -> None:
-    env = RobotLab(render_mode="rgb_array", task_id=1)
-    env = RecordVideo(env, video_folder="videos")
+    env = RobotLab(render_mode="rgb_array", task_id=0, x_range=6, y_range=4, max_episode_steps=400)
+    env = RecordVideo(env, video_folder="videos", name_prefix="lab")
     observation, info = env.reset()
     is_running = True
     while is_running:
@@ -30,5 +30,5 @@ def record_video_lab() -> None:
 
 
 if __name__ == "__main__":
-    # record_video_arm()
+    record_video_arm()
     record_video_lab()

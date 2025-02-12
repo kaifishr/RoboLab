@@ -14,8 +14,8 @@ from robolab.render.renderer import Renderer
 
 FPS: int = 60
 TIME_STEP: float = 1.0 / FPS
-VELOCITY_ITERATIONS: int = 10  # Iterations to compute next velocity.
-POSITION_ITERATIONS: int = 10  # Iterations to compute next position.
+VELOCITY_ITERATIONS: int = 20  # Iterations to compute next velocity.
+POSITION_ITERATIONS: int = 20  # Iterations to compute next position.
 SCALE: int = 8
 
 
@@ -76,8 +76,8 @@ class RobotLab(gym.Env):
         x_diam = x_max - x_min
         y_diam = y_max - y_min
 
-        self.x_diam = x_range * x_diam
-        self.y_diam = y_range * y_diam
+        self.x_diam = x_range * x_diam + (x_range - 1) * xy_gap
+        self.y_diam = y_range * y_diam + (y_range - 1) * xy_gap
 
         coords, ids = self._get_coords_of_boxes(x_range, y_range, x_diam, y_diam, xy_gap)
 
@@ -178,40 +178,21 @@ class RobotLab(gym.Env):
             self.render()
         return observations, infos
 
-    ## def render(self) -> None:
-    ##     if self.screen is None and self.render_mode == "human":
-    ##         pygame.init()
-    ##         pygame.display.init()
-    ##         pygame.display.set_caption("Robot Lab")
-    ##         self.screen = pygame.display.set_mode((
-    ##             int(1.02 * SCALE * self.x_diam),
-    ##             int(1.02 * SCALE * self.y_diam),
-    ##         ))
-    ##         self.clock = pygame.time.Clock()
-    ##         self.renderer = Renderer(screen=self.screen, scale=SCALE)
-    ##     self.renderer.render(world=self.world)
-    ##     self.clock.tick(FPS)
-    ##     pygame.event.pump()
-    ##     pygame.display.flip()
-    ##     for event in pygame.event.get():
-    ##         if event.type == pygame.QUIT:
-    ##             self.close()
-    ##             exit()
-
     def render(self) -> Optional[numpy.ndarray]:
         if self.render_mode == "human":
             if self.screen is None:
                 pygame.init()
                 pygame.display.init()
+                offset = 16
                 self.screen = pygame.display.set_mode(
                     (
-                        int(1.02 * SCALE * self.x_diam),
-                        int(1.02 * SCALE * self.y_diam),
+                        int(SCALE * self.x_diam + offset),
+                        int(SCALE * self.y_diam + offset),
                     )
                 )
-                pygame.display.set_caption("Robot Arm")
+                pygame.display.set_caption("Robot Lab")
                 self.clock = pygame.time.Clock()
-                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+                self.renderer = Renderer(screen=self.screen, scale=SCALE, offset=offset)
             self.renderer.render(world=self.world)
             self.clock.tick(FPS)
             pygame.event.pump()
@@ -222,13 +203,14 @@ class RobotLab(gym.Env):
                     exit()
         elif self.render_mode == "rgb_array":
             if self.renderer is None:
+                offset = 16
                 self.surface = pygame.Surface(
                     (
-                        int(1.02 * SCALE * self.x_diam),
-                        int(1.02 * SCALE * self.y_diam),
+                        int(SCALE * self.x_diam + offset),
+                        int(SCALE * self.y_diam + offset),
                     )
                 )
-                self.renderer = Renderer(screen=self.surface, scale=SCALE)
+                self.renderer = Renderer(screen=self.surface, scale=SCALE, offset=offset)
             self.renderer.render(world=self.world)
             rgb_array = numpy.array(pygame.surfarray.pixels3d(self.surface))
             return numpy.transpose(rgb_array, axes=(1, 0, 2))

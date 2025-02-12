@@ -554,20 +554,20 @@ class RobotArm(gym.Env):
             self.render()
         return observation, info
 
-    def render(self) -> Optional[numpy.ndarray]:
+    def render(self, offset: int = 16) -> Optional[numpy.ndarray]:
         if self.render_mode == "human":
             if self.screen is None:
                 pygame.init()
                 pygame.display.init()
                 self.screen = pygame.display.set_mode(
                     (
-                        int(1.02 * SCALE * self.x_diam),
-                        int(1.02 * SCALE * self.y_diam),
+                        int(SCALE * self.x_diam + offset),
+                        int(SCALE * self.y_diam + offset),
                     )
                 )
                 pygame.display.set_caption("Robot Arm")
                 self.clock = pygame.time.Clock()
-                self.renderer = Renderer(screen=self.screen, scale=SCALE)
+                self.renderer = Renderer(screen=self.screen, scale=SCALE, offset=offset)
             self.renderer.render(world=self.world)
             self.clock.tick(FPS)
             pygame.event.pump()
@@ -580,11 +580,11 @@ class RobotArm(gym.Env):
             if self.renderer is None:
                 self.surface = pygame.Surface(
                     (
-                        int(1.02 * SCALE * self.x_diam),
-                        int(1.02 * SCALE * self.y_diam),
+                        int(SCALE * self.x_diam + offset),
+                        int(SCALE * self.y_diam + offset),
                     )
                 )
-                self.renderer = Renderer(screen=self.surface, scale=SCALE)
+                self.renderer = Renderer(screen=self.surface, scale=SCALE, offset=offset)
             self.renderer.render(world=self.world)
             rgb_array = numpy.array(pygame.surfarray.pixels3d(self.surface))
             return numpy.transpose(rgb_array, axes=(1, 0, 2))
@@ -602,7 +602,7 @@ def debug():
 
     from Box2D.examples.framework import Framework, main
 
-    class RoboticArmDebug(Framework):
+    class RobotArmDebug(Framework):
 
         def __init__(self):
             super().__init__()
@@ -616,7 +616,7 @@ def debug():
             if terminated or truncated:
                 observation, infos = self.robot.reset()
 
-    main(RoboticArmDebug)
+    main(RobotArmDebug)
 
 
 if __name__ == "__main__":

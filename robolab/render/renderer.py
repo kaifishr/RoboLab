@@ -35,12 +35,13 @@ class Renderer:
         self,
         screen: pygame.Surface,
         scale: int,
+        offset: int,
     ) -> None:
         self.screen = screen
         self.scale = scale
         screen_width, screen_height = self.screen.get_size()
         self.screen_size = b2Vec2(screen_width, screen_height)
-        self.screen_offset = b2Vec2(-0.01 * screen_width, -0.01 * screen_height)
+        self.screen_offset = b2Vec2(-0.5 * offset, -0.5 * offset)
         self._install()
 
     def _install(self):
@@ -57,12 +58,10 @@ class Renderer:
         """Transforms point from simulation to screen coordinates."""
         pos_x = point.x * self.scale - self.screen_offset.x
         pos_y = point.y * self.scale - self.screen_offset.y
-
         if self.flip_x_axis:
             pos_x = self.screen_size.x - pos_x
         if self.flip_y_axis:
             pos_y = self.screen_size.y - pos_y
-
         return int(pos_x), int(pos_y)
 
     def _draw_circle(self, body, fixture, color=None, width: int = 1) -> None:
