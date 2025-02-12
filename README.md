@@ -7,7 +7,8 @@ RoboLab is a Gymnasium environment that simulates robotic arm control tasks usin
 |![](docs/assets/arm_0.gif)|![](docs/assets/arm_1.gif)|
 |-|-|
 
-![](docs/assets/lab_1.gif)
+|![](docs/assets/lab_1.gif)|
+|-|
 
 ## Install
 
@@ -48,6 +49,6 @@ https://github.com/pygame/pygame
 
 ## TODOs
 
-- Fix size of render window.
 - Normalize observations.
 - Specify observation ranges.
+- Use specified size for rendering window.
